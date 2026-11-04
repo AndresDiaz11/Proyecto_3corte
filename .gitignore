@@ -1,2 +1,5 @@
 #Contraseñas y Tokens ocultos
 .env
+venv/
+_pycache_/
+*.pyc
