@@ -15,7 +15,7 @@ except ImportError:
 
 NOMBRE_BD = "Futbol"
 
-GEMINI_API_KEY = os.env.get("GEMINI_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODELO_IA = "gemini-3.1-pro"   
 
 #CONEXION CON MONGO
