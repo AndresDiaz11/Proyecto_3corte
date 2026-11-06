@@ -64,27 +64,6 @@ def construir_filtro(campo, valor):
         pass
     return {campo: {"$in": opciones}}
 
-@app.get("/datos")
-def listar(coleccion: str = "goleadores", campo: Optional[str] = None,
-           valor: Optional[str] = None, limite: int = 20):
-    col = obtener_coleccion(coleccion)
-    filtro = construir_filtro(campo, valor)
-    documentos = [_a_json(d) for d in col.find(filtro).limit(limite)]
-    return {"cantidad": len(documentos), "datos": documentos}
-
-
-@app.get("/estadisticas")
-def estadisticas(agrupar_por: str, sumar: str, coleccion: str = "goleadores"):
-    col = obtener_coleccion(coleccion)
-    pipeline = [
-        {"$group": {"_id": f"${agrupar_por}",
-                    "suma": {"$sum": f"${sumar}"},
-                    "conteo": {"$sum": 1}}},
-        {"$sort": {"suma": -1}},
-    ]
-    grupos = [{agrupar_por: r["_id"], "suma": r["suma"], "conteo": r["conteo"]}
-              for r in col.aggregate(pipeline)]
-    return {"grupos": grupos}
 
 @app.get("/datos")
 def listar(coleccion: str = "goleadores", campo: Optional[str] = None,
