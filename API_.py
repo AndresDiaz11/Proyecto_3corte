@@ -1,5 +1,6 @@
 import os
 from typing import Optional
+import requests
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -13,6 +14,9 @@ except ImportError:
     pass
 
 NOMBRE_BD = "Futbol"
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+MODELO_IA = "gemini-3.1-pro"   
 
 #CONEXION CON MONGO
 
@@ -107,3 +111,48 @@ def estadisticas(agrupar_por: str, sumar: str, coleccion: str = "goleadores"):
     grupos = [{agrupar_por: r["_id"], "suma": r["suma"], "conteo": r["conteo"]}
               for r in col.aggregate(pipeline)]
     return {"grupos": grupos}
+
+#IA GEMINI
+
+class Pregunta(BaseModel):
+    pregunta: str
+ 
+    model_config = {
+        "json_schema_extra": {
+            "example": {"pregunta": "¿Cuál sucursal vendió más?"}
+        }
+    }
+ 
+ 
+@app.post("/preguntar")
+def preguntar(p: Pregunta):
+    """Responde una pregunta en lenguaje natural usando los datos de la coleccion."""
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=503, detail="Falta la GEMINI_API_KEY.")
+ 
+    # 1. Una muestra de los datos como contexto para la IA
+    muestra = [_a_json(d) for d in coleccion.find().limit(30)]
+ 
+    # 2. El prompt: instrucciones + datos + pregunta
+    prompt = (
+        "Eres un asistente que responde preguntas sobre estos datos. "
+        "Responde en español, breve y claro. Si la respuesta no está en los datos, dilo.\n\n"
+        f"DATOS (muestra):\n{muestra}\n\nPREGUNTA: {p.pregunta}"
+    )
+ 
+    # 3. Llamamos a la API del modelo (¡es otra API REST!)
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{MODELO_IA}:generateContent?key={GEMINI_API_KEY}"
+    )
+    try:
+        r = requests.post(
+            url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=30
+        )
+        r.raise_for_status()
+        data = r.json()
+        respuesta = data["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error al llamar al modelo: {e}")
+ 
+    return {"respuesta": respuesta}
