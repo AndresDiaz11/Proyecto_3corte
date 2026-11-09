@@ -108,16 +108,16 @@ def insertar(nombre_coleccion: str, doc: dict, filtro_duplicado: dict):
 class NuevoGoleador(BaseModel):
     competition_code: str = Field(min_length=1)
     competition_name: str = Field(min_length=1)
-    season: str = Field(min_length=4)
-    player_id: str = Field(min_length=1)
+    season: int = Field(ge=1900)
+    player_id: int
     player_name: str = Field(min_length=1)
     player_nationality: str
     player_section: str
-    team_id: str = Field(min_length=1)
+    team_id: int
     team_name: str = Field(min_length=1)
     goals: int = Field(ge=0)
-    assists: int = Field(ge=0)
-    penalties: int = Field(ge=0)
+    assists: Optional[int] = Field(default=None, ge=0)
+    penalties: Optional[int] = Field(default=None, ge=0)
 
 
 @app.post("/goleadores", status_code=201)
