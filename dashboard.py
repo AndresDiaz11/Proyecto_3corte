@@ -236,7 +236,7 @@ else:  # partidos
 
 # Gemini asistente para preguntas en lenguaje natural        
 st.subheader("🤖 Pregúntale a tus datos")
-pregunta = st.text_input("Escribe tu pregunta (ej. ¿cuál sucursal vendió más?)")
+pregunta = st.text_input("Escribe tu pregunta (ej. ¿Cual es el jugador con más goles?)")
 if st.button("Preguntar") and pregunta:
     with st.spinner("Pensando..."):
         r = requests.post(f"{API}/preguntar", json={"pregunta": pregunta}, timeout=60)
