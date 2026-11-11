@@ -249,7 +249,7 @@ class Pregunta(BaseModel):
  
     model_config = {
         "json_schema_extra": {
-            "example": {"pregunta": "¿Cuál sucursal vendió más?"}
+            "example": {"pregunta": "¿Cual el es jugador con mas goles?"}
         }
     }
  
