@@ -12,7 +12,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-API = "http://localhost:8000"  # luego cambia por la URL de Render
+API = "https://proyecto-3corte.onrender.com"  # luego cambia por la URL de Render
 
 st.set_page_config(page_title="Proyecto Final", page_icon="⚽", layout="wide")
 st.title("⚽ Dashboard de Fútbol")
