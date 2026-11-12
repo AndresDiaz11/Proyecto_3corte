@@ -242,34 +242,30 @@ def crear_partido(r: NuevoPartido):
     }
     return insertar("partidos", doc, {"id": d["id"]})
 #IA GEMINI
-
-class Pregunta(BaseModel):
-    pregunta: str
- 
-    model_config = {
-        "json_schema_extra": {
-            "example": {"pregunta": "¿Cual el es jugador con mas goles?"}
-        }
-    }
- 
- 
-@app.post("/preguntar")
 class Pregunta(BaseModel):
     pregunta: str = Field(min_length=1)
-    coleccion: Optional[Literal["goleadores", "partidos", "standings"]] = None
-
+    coleccion: Optional[Literal["goleadores", "partidos", "standings"]] = None  
+    model_config = {
+        "json_schema_extra": {
+            "example": {"pregunta": "¿Cual el el jugador con mas goles?"}
+        }
+    }
+PROYECCION_IA = {
+        "partidos": {"odds": 0, "referees": 0, "area": 0, "season": 0,
+                     "competition": 0, "lastUpdated": 0},
+}
+@app.post("/preguntar")
 def preguntar(p: Pregunta):
     """Responde una pregunta en lenguaje natural usando los datos de la coleccion."""
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=503, detail="Falta la GEMINI_API_KEY.")
 
-    # 1. Una muestra de los datos como contexto para la IA
-    # CAMBIO: la coleccion elegida, o las tres si no se eligio ninguna
+  # 1. Una muestra de los datos como contexto para la IA
+    # La coleccion elegida, o las tres si no se eligio ninguna
     nombres = [p.coleccion] if p.coleccion else list(COLECCIONES)
     limite = 30 if p.coleccion else 10
-    campos = {"odds": 0, "referees": 0, "area": 0, "season": 0, "lastUpdated": 0}
     muestra = {
-        n: [_a_json(d) for d in COLECCIONES[n].find({}, campos).limit(limite)]
+        n: [_a_json(d) for d in COLECCIONES[n].find({}, PROYECCION_IA.get(n)).limit(limite)]
         for n in nombres
     }
 
