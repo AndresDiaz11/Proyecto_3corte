@@ -295,7 +295,9 @@ def preguntar(p: Pregunta):
         )
         r.raise_for_status()
         data = r.json()
-        respuesta = data["candidates"][0]["content"]["parts"][0]["text"]
+        partes = data["candidates"][0]["content"]["parts"]
+        textos = [parte.get("text", "") for parte in partes if not parte.get("thought")]
+        respuesta = "".join(textos).strip() or partes[-1].get("text", "").strip()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error al llamar al modelo: {e}")
 
