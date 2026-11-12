@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Literal, Optional
 import requests
 
 from fastapi import FastAPI, HTTPException
@@ -70,13 +70,12 @@ def construir_filtro(campo, valor):
 
 
 @app.get("/datos")
-def listar(coleccion: str = "goleadores", campo: Optional[str] = None,
-           valor: Optional[str] = None, limite: int = 20):
+def listar(coleccion: Literal["goleadores", "partidos", "standings"] = "goleadores",
+           campo: Optional[str] = None, valor: Optional[str] = None, limite: int = 20):
     col = obtener_coleccion(coleccion)
     filtro = construir_filtro(campo, valor)
     documentos = [_a_json(d) for d in col.find(filtro).limit(limite)]
     return {"cantidad": len(documentos), "datos": documentos}
-
 
 @app.get("/estadisticas")
 def estadisticas(agrupar_por: str, sumar: str, coleccion: str = "goleadores"):
@@ -255,34 +254,53 @@ class Pregunta(BaseModel):
  
  
 @app.post("/preguntar")
+class Pregunta(BaseModel):
+    pregunta: str = Field(min_length=1)
+    coleccion: Optional[Literal["goleadores", "partidos", "standings"]] = None
+
 def preguntar(p: Pregunta):
     """Responde una pregunta en lenguaje natural usando los datos de la coleccion."""
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=503, detail="Falta la GEMINI_API_KEY.")
- 
+
     # 1. Una muestra de los datos como contexto para la IA
-    muestra = [_a_json(d) for d in coleccion.find().limit(30)]
- 
+    # CAMBIO: la coleccion elegida, o las tres si no se eligio ninguna
+    nombres = [p.coleccion] if p.coleccion else list(COLECCIONES)
+    limite = 30 if p.coleccion else 10
+    campos = {"odds": 0, "referees": 0, "area": 0, "season": 0, "lastUpdated": 0}
+    muestra = {
+        n: [_a_json(d) for d in COLECCIONES[n].find({}, campos).limit(limite)]
+        for n in nombres
+    }
+
     # 2. El prompt: instrucciones + datos + pregunta
+    # CAMBIO: se explica que son varias colecciones
     prompt = (
-        "Eres un asistente que responde preguntas sobre estos datos. "
+        "Eres un asistente que responde preguntas sobre datos de futbol. "
+        "Los datos vienen agrupados por coleccion: 'goleadores' (jugadores con goles, "
+        "asistencias y penales), 'standings' (tabla de posiciones por equipo y temporada) "
+        "y 'partidos' (resultados). Usa la coleccion que corresponda a la pregunta. "
         "Responde en español, breve y claro. Si la respuesta no está en los datos, dilo.\n\n"
         f"DATOS (muestra):\n{muestra}\n\nPREGUNTA: {p.pregunta}"
     )
- 
+
     # 3. Llamamos a la API del modelo (¡es otra API REST!)
+    # CAMBIO: la llave va en un encabezado, no en la URL
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{MODELO_IA}:generateContent?key={GEMINI_API_KEY}"
+        f"{MODELO_IA}:generateContent"
     )
     try:
         r = requests.post(
-            url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=30
+            url,
+            headers={"x-goog-api-key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+            timeout=30,
         )
         r.raise_for_status()
         data = r.json()
         respuesta = data["candidates"][0]["content"]["parts"][0]["text"]
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error al llamar al modelo: {e}")
- 
+
     return {"respuesta": respuesta}
