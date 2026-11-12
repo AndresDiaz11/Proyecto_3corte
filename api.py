@@ -1,6 +1,7 @@
 import os
 from typing import Literal, Optional
 import requests
+import time
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -336,12 +337,17 @@ def preguntar(p: Pregunta):
         f"{MODELO_IA}:generateContent"
     )
     try:
-        r = requests.post(
-            url,
-            headers={"x-goog-api-key": GEMINI_API_KEY},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=60,
-        )
+        # Si Google falla (500), lo intentamos hasta 3 veces
+        for intento in range(3):
+            r = requests.post(
+                url,
+                headers={"x-goog-api-key": GEMINI_API_KEY},
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=60,
+            )
+            if r.status_code != 500:
+                break
+            time.sleep(2)
         r.raise_for_status()
         data = r.json()
         partes = data["candidates"][0]["content"]["parts"]
