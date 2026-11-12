@@ -244,44 +244,61 @@ def crear_partido(r: NuevoPartido):
 #IA GEMINI
 class Pregunta(BaseModel):
     pregunta: str = Field(min_length=1)
-    coleccion: Optional[Literal["goleadores", "partidos", "standings"]] = None  
+    coleccion: Optional[Literal["goleadores", "partidos", "standings"]] = None
     model_config = {
         "json_schema_extra": {
-            "example": {"pregunta": "¿Cual el el jugador con mas goles?"}
+            "example": {"pregunta": "¿Cual es el jugador con mas goles?"}
         }
     }
+
+
+# Campos que la IA puede ver de cada coleccion
 PROYECCION_IA = {
-        "partidos": {"odds": 0, "referees": 0, "area": 0, "season": 0,
-                     "competition": 0, "lastUpdated": 0},
+    "goleadores": {"_id": 0, "player_name": 1, "team_name": 1, "goals": 1,
+                   "assists": 1, "penalties": 1, "season": 1, "competition_name": 1},
+    "standings": {"_id": 0, "team.name": 1, "position": 1, "points": 1,
+                  "goalsFor": 1, "goalsAgainst": 1, "won": 1, "draw": 1,
+                  "lost": 1, "temporada": 1, "competition_name": 1},
+    "partidos": {"_id": 0, "utcDate": 1, "matchday": 1, "homeTeam.name": 1,
+                 "awayTeam.name": 1, "score.fullTime": 1, "competition_name": 1},
 }
+# Solo partidos lleva limite; las otras van completas
+LIMITE_IA = {"partidos": 300}
+# Los partidos mas recientes primero
+ORDEN_IA = {"partidos": [("utcDate", -1)]}
+
+
 @app.post("/preguntar")
 def preguntar(p: Pregunta):
     """Responde una pregunta en lenguaje natural usando los datos de la coleccion."""
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=503, detail="Falta la GEMINI_API_KEY.")
 
-  # 1. Una muestra de los datos como contexto para la IA
+    # 1. Los datos que va a leer la IA
     # La coleccion elegida, o las tres si no se eligio ninguna
     nombres = [p.coleccion] if p.coleccion else list(COLECCIONES)
-    limite = 30 if p.coleccion else 10
-    muestra = {
-        n: [_a_json(d) for d in COLECCIONES[n].find({}, PROYECCION_IA.get(n)).limit(limite)]
-        for n in nombres
-    }
+
+    muestra = {}
+    for n in nombres:
+        cursor = COLECCIONES[n].find({}, PROYECCION_IA[n])
+        if n in ORDEN_IA:
+            cursor = cursor.sort(ORDEN_IA[n])
+        if n in LIMITE_IA:
+            cursor = cursor.limit(LIMITE_IA[n])
+        muestra[n] = list(cursor)
 
     # 2. El prompt: instrucciones + datos + pregunta
-    # CAMBIO: se explica que son varias colecciones
     prompt = (
         "Eres un asistente que responde preguntas sobre datos de futbol. "
         "Los datos vienen agrupados por coleccion: 'goleadores' (jugadores con goles, "
         "asistencias y penales), 'standings' (tabla de posiciones por equipo y temporada) "
-        "y 'partidos' (resultados). Usa la coleccion que corresponda a la pregunta. "
+        "y 'partidos' (resultados, solo los 300 mas recientes). "
+        "Usa la coleccion que corresponda a la pregunta. "
         "Responde en español, breve y claro. Si la respuesta no está en los datos, dilo.\n\n"
-        f"DATOS (muestra):\n{muestra}\n\nPREGUNTA: {p.pregunta}"
+        f"DATOS:\n{muestra}\n\nPREGUNTA: {p.pregunta}"
     )
 
     # 3. Llamamos a la API del modelo (¡es otra API REST!)
-    # CAMBIO: la llave va en un encabezado, no en la URL
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{MODELO_IA}:generateContent"
@@ -291,11 +308,12 @@ def preguntar(p: Pregunta):
             url,
             headers={"x-goog-api-key": GEMINI_API_KEY},
             json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=30,
+            timeout=60,
         )
         r.raise_for_status()
         data = r.json()
         partes = data["candidates"][0]["content"]["parts"]
+        # Gemini marca el razonamiento con "thought": True; nos quedamos con lo demas
         textos = [parte.get("text", "") for parte in partes if not parte.get("thought")]
         respuesta = "".join(textos).strip() or partes[-1].get("text", "").strip()
     except Exception as e:
