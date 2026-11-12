@@ -266,6 +266,36 @@ PROYECCION_IA = {
 LIMITE_IA = {"partidos": 300}
 # Los partidos mas recientes primero
 ORDEN_IA = {"partidos": [("utcDate", -1)]}
+LIMITE_IA = {"partidos": 150}
+FILTRO_IA = {"standings": {"tipo_tabla": "TOTAL"}}
+
+
+def aplanar(doc, prefijo=""):
+    """Convierte {'team': {'name': 'X'}} en {'team.name': 'X'}."""
+    plano = {}
+    for clave, valor in doc.items():
+        nombre = f"{prefijo}{clave}"
+        if isinstance(valor, dict):
+            plano.update(aplanar(valor, nombre + "."))
+        else:
+            plano[nombre] = valor
+    return plano
+
+
+def a_tabla(docs):
+    """Convierte la lista de documentos en una tabla de texto."""
+    filas = [aplanar(d) for d in docs]
+    if not filas:
+        return "(sin datos)"
+    columnas = []
+    for fila in filas:
+        for c in fila:
+            if c not in columnas:
+                columnas.append(c)
+    lineas = [" | ".join(columnas)]
+    for fila in filas:
+        lineas.append(" | ".join(str(fila.get(c, "")) for c in columnas))
+    return "\n".join(lineas)
 
 
 @app.post("/preguntar")
@@ -280,22 +310,24 @@ def preguntar(p: Pregunta):
 
     muestra = {}
     for n in nombres:
-        cursor = COLECCIONES[n].find({}, PROYECCION_IA[n])
+        cursor = COLECCIONES[n].find(FILTRO_IA.get(n, {}), PROYECCION_IA[n])
         if n in ORDEN_IA:
             cursor = cursor.sort(ORDEN_IA[n])
         if n in LIMITE_IA:
             cursor = cursor.limit(LIMITE_IA[n])
-        muestra[n] = list(cursor)
+        muestra[n] = a_tabla(list(cursor))
+
+    datos_texto = "\n\n".join(f"COLECCION {n}:\n{tabla}" for n, tabla in muestra.items())
 
     # 2. El prompt: instrucciones + datos + pregunta
     prompt = (
         "Eres un asistente que responde preguntas sobre datos de futbol. "
         "Los datos vienen agrupados por coleccion: 'goleadores' (jugadores con goles, "
         "asistencias y penales), 'standings' (tabla de posiciones por equipo y temporada) "
-        "y 'partidos' (resultados, solo los 300 mas recientes). "
+        "y 'partidos' (resultados, solo los 150 mas recientes). "
         "Usa la coleccion que corresponda a la pregunta. "
         "Responde en español, breve y claro. Si la respuesta no está en los datos, dilo.\n\n"
-        f"DATOS:\n{muestra}\n\nPREGUNTA: {p.pregunta}"
+        f"DATOS:\n{datos_texto}\n\nPREGUNTA: {p.pregunta}"
     )
 
     # 3. Llamamos a la API del modelo (¡es otra API REST!)
