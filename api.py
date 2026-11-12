@@ -1,7 +1,6 @@
 import os
 from typing import Literal, Optional
 import requests
-import time
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -264,10 +263,9 @@ PROYECCION_IA = {
                  "awayTeam.name": 1, "score.fullTime": 1, "competition_name": 1},
 }
 # Solo partidos lleva limite; las otras van completas
-LIMITE_IA = {"partidos": 300}
 # Los partidos mas recientes primero
 ORDEN_IA = {"partidos": [("utcDate", -1)]}
-LIMITE_IA = {"partidos": 150}
+LIMITE_IA = {"partidos": 50}
 FILTRO_IA = {"standings": {"tipo_tabla": "TOTAL"}}
 
 
@@ -337,17 +335,12 @@ def preguntar(p: Pregunta):
         f"{MODELO_IA}:generateContent"
     )
     try:
-        # Si Google falla (500), lo intentamos hasta 3 veces
-        for intento in range(3):
-            r = requests.post(
-                url,
-                headers={"x-goog-api-key": GEMINI_API_KEY},
-                json={"contents": [{"parts": [{"text": prompt}]}]},
-                timeout=60,
-            )
-            if r.status_code != 500:
-                break
-            time.sleep(2)
+        r = requests.post(
+            url,
+            headers={"x-goog-api-key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+            timeout=60,
+        )
         r.raise_for_status()
         data = r.json()
         partes = data["candidates"][0]["content"]["parts"]
