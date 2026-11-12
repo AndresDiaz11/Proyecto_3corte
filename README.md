@@ -20,3 +20,7 @@ El proyecto está dividido en tres colecciones principales que se relacionan ent
 1. Clona este repositorio en tu máquina local:
    ```bash
    git clone [https://github.com/AndresDiaz11/Proyecto_3corte.git](https://github.com/AndresDiaz11/Proyecto_3corte.git)
+
+## Links 
+1. Api publica: https://proyecto-3corte.onrender.com/docs
+2. Dashboard publico: https://proyecto3corte-k37k9sglyieudjqhtqty5t.streamlit.app/
