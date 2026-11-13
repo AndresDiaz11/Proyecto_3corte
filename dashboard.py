@@ -15,8 +15,7 @@ import streamlit as st
 API = "https://proyecto-3corte.onrender.com"  # luego cambia por la URL de Render
 
 st.set_page_config(page_title="Proyecto Final", page_icon="⚽", layout="wide")
-st.title("⚽ Dashboard de Fútbol")
-
+st.title("⚽ Futballia - Dashboard del Proyecto Final")
 
 # --- Funciones que hablan con la API ---------------------------------------
 @st.cache_data(ttl=30)
