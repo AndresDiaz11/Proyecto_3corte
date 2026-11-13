@@ -323,7 +323,7 @@ def preguntar(p: Pregunta):
         "Eres un asistente que responde preguntas sobre datos de futbol. "
         "Los datos vienen agrupados por coleccion: 'goleadores' (jugadores con goles, "
         "asistencias y penales), 'standings' (tabla de posiciones por equipo y temporada) "
-        "y 'partidos' (resultados, solo los 150 mas recientes). "
+        "y 'partidos' (resultados, solo los 50 mas recientes). "
         "Usa la coleccion que corresponda a la pregunta. "
         "Responde en español, breve y claro. Si la respuesta no está en los datos, dilo.\n\n"
         f"DATOS:\n{datos_texto}\n\nPREGUNTA: {p.pregunta}"
